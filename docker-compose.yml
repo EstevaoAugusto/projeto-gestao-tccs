@@ -1,0 +1,109 @@
+# Docker Compose para o ambiente full stack de desenvolvimento:
+# - frontend: Vue.js/Vite
+# - backend: Django REST Framework
+# - db: PostgreSQL
+
+services:
+  # Interface web Vue.js servida pelo Vite em modo desenvolvimento.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tcc_frontend
+    command: >
+      sh -c "echo '[health] frontend=starting vite_port=5173 backend_url=http://backend:8000';
+             npm run dev -- --host 0.0.0.0 --port 5173 &
+             VITE_PID=$$! &&
+             sleep 3 &&
+             echo '[health] frontend=healthy vite_port=5173' &&
+             wait $$VITE_PID"
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000
+    volumes:
+      # Mantem o codigo-fonte do frontend sincronizado com o container.
+      - ./frontend:/app
+      # Preserva as dependencias instaladas dentro do container.
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - tcc_network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Django REST Framework.
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tcc_backend
+    command: >
+      sh -c "echo '[health] backend=starting django_port=8000 waiting_for_database=db:5432' &&
+             python manage.py migrate &&
+             echo '[health] backend=healthy database=connected' &&
+             python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-development}
+      DEBUG: "True"
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      POSTGRES_DB: ${POSTGRES_DB:-tcc_db}
+      POSTGRES_USER: ${POSTGRES_USER:-tcc_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tcc_password}
+      DB_HOST: db
+      DB_PORT: 5432
+    volumes:
+      # Mantem o codigo-fonte do backend sincronizado com o container.
+      - ./backend:/app
+    networks:
+      - tcc_network
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/', timeout=3).read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Banco de dados PostgreSQL com volume persistente.
+  db:
+    image: postgres:16-alpine
+    container_name: tcc_db
+    entrypoint: >
+      sh -c "echo '[health] db=starting postgres_port=5432' &&
+             exec docker-entrypoint.sh postgres"
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tcc_db}
+      POSTGRES_USER: ${POSTGRES_USER:-tcc_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tcc_password}
+    volumes:
+      # Persiste os dados do PostgreSQL entre recriacoes dos containers.
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tcc_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} && echo '[health] db=healthy postgres_port=5432'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# Rede interna usada para comunicacao entre os containers por nome de servico.
+networks:
+  tcc_network:
+    driver: bridge
+
+# Volumes persistentes gerenciados pelo Docker.
+volumes:
+  postgres_data:
+  frontend_node_modules:
