@@ -1,12 +1,50 @@
 from rest_framework import viewsets, filters, status
+from rest_framework.decorators import api_view
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.db import connection
 from django.db.models import Count
 from .models import UnidadeAcademica, Departamento, Curso, Aluno, Professor, TCC
 from .serializers import (
     UnidadeAcademicaSerializer, DepartamentoSerializer, CursoSerializer,
     AlunoSerializer, ProfessorSerializer, TCCSerializer
 )
+
+
+@api_view(['GET'])
+def health_check(request):
+    database_ok = False
+    database_message = 'Banco de dados indisponivel.'
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+            cursor.fetchone()
+        database_ok = True
+        database_message = 'PostgreSQL conectado e respondendo.'
+    except Exception as exc:
+        database_message = f'Falha ao consultar o banco de dados: {exc}'
+
+    http_status = status.HTTP_200_OK if database_ok else status.HTTP_503_SERVICE_UNAVAILABLE
+    payload = {
+        'status': 'healthy' if database_ok else 'unhealthy',
+        'services': {
+            'backend': {
+                'status': 'healthy',
+                'message': 'Django REST Framework respondendo.',
+            },
+            'database': {
+                'status': 'healthy' if database_ok else 'unhealthy',
+                'message': database_message,
+            },
+        },
+    }
+
+    print(
+        f"[health] backend=healthy database={payload['services']['database']['status']}",
+        flush=True,
+    )
+    return Response(payload, status=http_status)
 
 class UnidadeAcademicaViewSet(viewsets.ModelViewSet):
     queryset = UnidadeAcademica.objects.all()
