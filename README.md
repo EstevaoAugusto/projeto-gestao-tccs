@@ -4,22 +4,38 @@ Sistema full stack para gerenciamento de Trabalhos de Conclusão de Curso (TCCs)
 
 O projeto é composto por:
 
-- **Frontend:** Vue.js com Vite
+- **Frontend:** Vue.js 3 com Tailwind CSS, Chart.js e Heroicons
 - **Backend:** Django REST Framework
 - **Banco de dados:** PostgreSQL
 - **Orquestração:** Docker Compose
 
-Além da API principal, o projeto possui uma página inicial de verificação em `http://localhost:5173` que confirma se frontend, backend e banco de dados estão funcionando corretamente após a subida dos containers.
-
 ## Funcionalidades
 
-- Listagem e busca de alunos, professores, cursos, departamentos, unidades acadêmicas e TCCs.
-- Cadastro e edição de TCCs.
-- Upload de arquivo PDF no cadastro de TCC.
-- Alteração de status do TCC.
-- Endpoint de estatísticas para dashboard.
-- Endpoint de saúde da aplicação.
-- Ambiente Docker com containers separados para frontend, backend e banco de dados.
+### Painel geral (Dashboard)
+
+- Cartões de resumo com totais de TCCs, alunos, professores e cursos.
+- Indicadores por status: em elaboração, enviados, aprovados e reprovados.
+- Gráficos interativos com Chart.js: distribuição por status (rosca), por tipo (barras horizontais), por semestre (barras verticais) e por curso (rosca).
+
+### CRUD completo
+
+Todas as entidades possuem listagem, cadastro, edição e exclusão:
+
+- **TCCs** — busca por título/resumo, exportação CSV, upload de arquivo PDF, seleção de aluno/orientador/banca, badge de status.
+- **Alunos** — busca por nome/matrícula, seleção de curso.
+- **Professores** — busca por nome, seleção de departamento.
+- **Cursos** — nome, sigla e código.
+- **Departamentos** — nome, sigla e unidade acadêmica.
+- **Unidades acadêmicas** — nome e sigla.
+
+### Interface
+
+- Sidebar responsiva com navegação entre as 7 páginas.
+- Modais para formulários de cadastro e edição.
+- Diálogo de confirmação para exclusões.
+- Notificações toast de sucesso e erro.
+- Skeleton loading durante carregamento de dados.
+- Validação inline de erros retornados pela API.
 
 ## Requisitos Mínimos
 
@@ -49,16 +65,11 @@ Após a inicialização, acesse:
 - Frontend: `http://localhost:5173`
 - Backend/API: `http://localhost:8000/api/`
 - Health check da API: `http://localhost:8000/api/health/`
-- PostgreSQL: `localhost:5432`
 
-Durante a execução, os containers exibem mensagens de saúde no terminal, por exemplo:
+Para popular o banco com dados iniciais (~100 alunos, 20 professores, 100 TCCs):
 
-```text
-[health] db=starting postgres_port=5432
-[health] backend=starting django_port=8000 waiting_for_database=db:5432
-[health] backend=healthy database=connected
-[health] frontend=starting vite_port=5173 backend_url=http://backend:8000
-[health] frontend=healthy vite_port=5173
+```bash
+docker compose exec backend python load.py
 ```
 
 Para parar os containers:
@@ -103,8 +114,8 @@ O arquivo `docker-compose.yml` define três serviços principais:
 
 | Serviço | Tecnologia | Porta | Descrição |
 | --- | --- | --- | --- |
-| `frontend` | Vue.js/Vite | `5173` | Interface web e página de status da aplicação |
-| `backend` | Django REST Framework | `8000` | API REST e endpoint de saúde |
+| `frontend` | Vue.js/Vite | `5173` | Interface web SPA |
+| `backend` | Django REST Framework | `8000` | API REST |
 | `db` | PostgreSQL | `5432` | Banco de dados persistente |
 
 Volumes configurados:
@@ -113,38 +124,6 @@ Volumes configurados:
 - `frontend_node_modules`: mantém as dependências Node instaladas dentro do container.
 - `./frontend:/app`: sincroniza o código-fonte do frontend.
 - `./backend:/app`: sincroniza o código-fonte do backend.
-
-## Página de Saúde
-
-A página inicial do frontend, disponível em `http://localhost:5173`, mostra o estado de:
-
-- Vue.js/Vite
-- Django REST Framework
-- PostgreSQL
-
-Ela consulta o endpoint:
-
-```text
-GET /api/health/
-```
-
-Resposta esperada:
-
-```json
-{
-  "status": "healthy",
-  "services": {
-    "backend": {
-      "status": "healthy",
-      "message": "Django REST Framework respondendo."
-    },
-    "database": {
-      "status": "healthy",
-      "message": "PostgreSQL conectado e respondendo."
-    }
-  }
-}
-```
 
 ## Endpoints da API
 
@@ -221,7 +200,7 @@ Idiomas disponíveis:
 
 ## Estatísticas
 
-O endpoint abaixo retorna dados agregados para dashboards:
+O endpoint abaixo retorna dados agregados usados pelo painel geral:
 
 ```text
 GET /api/tccs/estatisticas/
@@ -282,6 +261,17 @@ npm install
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
+## Stack do Frontend
+
+| Biblioteca | Versão | Uso |
+| --- | --- | --- |
+| Vue.js | 3.5 | Framework SPA com Composition API (`<script setup>`) |
+| Vue Router | 5.1 | Roteamento SPA com lazy loading |
+| Tailwind CSS | 4.3 | Estilização via classes utilitárias (plugin Vite) |
+| Chart.js + vue-chartjs | 4.5 / 5.3 | Gráficos do painel geral |
+| Heroicons | 2.2 | Ícones SVG (outline 24px e solid 20px) |
+| Vite | 8.0 | Bundler e dev server |
+
 ## Estrutura do Projeto
 
 ```text
@@ -303,11 +293,32 @@ npm run dev -- --host 0.0.0.0 --port 5173
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
+│   │   ├── assets/
+│   │   │   └── main.css
+│   │   ├── components/
+│   │   │   ├── AppLayout.vue
+│   │   │   ├── BaseModal.vue
+│   │   │   ├── ConfirmDialog.vue
+│   │   │   ├── StatusBadge.vue
+│   │   │   └── ToastContainer.vue
+│   │   ├── composables/
+│   │   │   ├── useApi.js
+│   │   │   └── useToast.js
+│   │   ├── router/
+│   │   │   └── index.js
+│   │   ├── views/
+│   │   │   ├── AlunosView.vue
+│   │   │   ├── CursosView.vue
+│   │   │   ├── DashboardView.vue
+│   │   │   ├── DepartamentosView.vue
+│   │   │   ├── ProfessoresView.vue
+│   │   │   ├── TccsView.vue
+│   │   │   └── UnidadesView.vue
 │   │   ├── App.vue
-│   │   ├── main.js
-│   │   └── assets/
+│   │   └── main.js
 │   ├── Dockerfile
 │   ├── .dockerignore
+│   ├── index.html
 │   ├── package.json
 │   └── vite.config.js
 ├── docker-compose.yml
@@ -364,6 +375,8 @@ docker compose exec backend python manage.py shell
 - [Django REST Framework](https://www.django-rest-framework.org/)
 - [Django](https://www.djangoproject.com/)
 - [Vue.js](https://vuejs.org/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Chart.js](https://www.chartjs.org/)
 - [Vite](https://vite.dev/)
 - [PostgreSQL](https://www.postgresql.org/)
 - [Docker Compose](https://docs.docker.com/compose/)
