@@ -46,6 +46,7 @@ services:
     command: >
       sh -c "echo '[health] backend=starting django_port=8000 waiting_for_database=db:5432' &&
              python manage.py migrate &&
+             python seed.py --tccs ${SEED_TCCS:-50} &&
              echo '[health] backend=healthy database=connected' &&
              python manage.py runserver 0.0.0.0:8000"
     ports:
@@ -59,6 +60,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tcc_password}
       DB_HOST: db
       DB_PORT: 5432
+      SEED_TCCS: ${SEED_TCCS:-50}
     volumes:
       # Mantem o codigo-fonte do backend sincronizado com o container.
       - ./backend:/app
