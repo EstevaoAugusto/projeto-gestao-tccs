@@ -11,10 +11,13 @@ import {
   TrashIcon,
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
+  EyeIcon,
+  XMarkIcon,
 } from '@heroicons/vue/20/solid'
 
 const api = useApi('tccs')
 const toast = useToast()
+const apiOrigin = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const items = ref([])
 const loading = ref(true)
@@ -25,6 +28,8 @@ const saving = ref(false)
 const errors = ref({})
 const deleteTarget = ref(null)
 const deleting = ref(false)
+const deletingArquivo = ref(false)
+const fileInputKey = ref(0)
 
 const alunos = ref([])
 const professores = ref([])
@@ -173,6 +178,47 @@ function onFileChange(e) {
   form.arquivo = e.target.files[0] || null
 }
 
+function arquivoUrl(arquivo) {
+  if (!arquivo) return ''
+  if (/^https?:\/\//.test(arquivo)) return arquivo
+  return `${apiOrigin}${arquivo}`
+}
+
+function arquivoName(arquivo) {
+  if (!arquivo) return ''
+  return decodeURIComponent(arquivo.split('/').pop() || 'arquivo.pdf')
+}
+
+function visualizarArquivo(arquivo) {
+  window.open(arquivoUrl(arquivo), '_blank', 'noopener')
+}
+
+function baixarArquivo(arquivo) {
+  const a = document.createElement('a')
+  a.href = arquivoUrl(arquivo)
+  a.download = arquivoName(arquivo)
+  a.click()
+}
+
+async function apagarArquivo() {
+  if (!editing.value?.arquivo) return
+
+  deletingArquivo.value = true
+  try {
+    const updated = await api.patch(editing.value.id, { arquivo: null })
+    editing.value = updated
+    const index = items.value.findIndex(item => item.id === updated.id)
+    if (index !== -1) items.value[index] = updated
+    form.arquivo = null
+    fileInputKey.value += 1
+    toast.success('Arquivo removido.')
+  } catch {
+    toast.error('Falha ao remover o arquivo.')
+  } finally {
+    deletingArquivo.value = false
+  }
+}
+
 function exportCsv() {
   const header = ['Título', 'Aluno', 'Orientador', 'Tipo', 'Idioma', 'Status', 'Semestre']
   const rows = items.value.map(t => [
@@ -236,19 +282,20 @@ function fieldError(name) {
             <th class="px-4 py-3 font-medium text-zinc-600">Tipo</th>
             <th class="px-4 py-3 font-medium text-zinc-600">Semestre</th>
             <th class="px-4 py-3 font-medium text-zinc-600">Status</th>
+            <th class="px-4 py-3 font-medium text-zinc-600">Arquivo</th>
             <th class="px-4 py-3 font-medium text-zinc-600 w-24">Ações</th>
           </tr>
         </thead>
         <tbody>
           <template v-if="loading">
             <tr v-for="i in 6" :key="i" class="border-b border-zinc-100">
-              <td v-for="j in 7" :key="j" class="px-4 py-3">
+              <td v-for="j in 8" :key="j" class="px-4 py-3">
                 <div class="h-4 w-full animate-pulse rounded bg-zinc-100" />
               </td>
             </tr>
           </template>
           <tr v-else-if="items.length === 0">
-            <td colspan="7" class="px-4 py-12 text-center text-sm text-zinc-400">
+            <td colspan="8" class="px-4 py-12 text-center text-sm text-zinc-400">
               Nenhum TCC encontrado.
             </td>
           </tr>
@@ -264,6 +311,27 @@ function fieldError(name) {
             <td class="px-4 py-3 text-zinc-600 whitespace-nowrap">{{ item.tipo_display }}</td>
             <td class="px-4 py-3 text-zinc-600">{{ item.semestre_letivo_defesa || '—' }}</td>
             <td class="px-4 py-3"><StatusBadge :status="item.status" /></td>
+            <td class="px-4 py-3">
+              <div v-if="item.arquivo" class="flex gap-1">
+                <button
+                  type="button"
+                  class="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors duration-150"
+                  :title="`Visualizar ${arquivoName(item.arquivo)}`"
+                  @click="visualizarArquivo(item.arquivo)"
+                >
+                  <EyeIcon class="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  class="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors duration-150"
+                  :title="`Baixar ${arquivoName(item.arquivo)}`"
+                  @click="baixarArquivo(item.arquivo)"
+                >
+                  <ArrowDownTrayIcon class="h-4 w-4" />
+                </button>
+              </div>
+              <span v-else class="text-zinc-400">—</span>
+            </td>
             <td class="px-4 py-3">
               <div class="flex gap-1">
                 <button type="button" class="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors duration-150" @click="openEdit(item)">
@@ -388,7 +456,38 @@ function fieldError(name) {
           </div>
           <div>
             <label class="block text-sm font-medium text-zinc-700 mb-1">Arquivo <span class="text-zinc-400 font-normal">(PDF)</span></label>
-            <input type="file" accept=".pdf,.doc,.docx" class="w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-900 file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-2 file:py-1 file:text-xs file:font-medium file:text-zinc-700 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" @change="onFileChange" />
+            <div v-if="editing?.arquivo" class="mb-2 flex items-center justify-between gap-3 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
+              <span class="min-w-0 truncate text-sm text-zinc-700">{{ arquivoName(editing.arquivo) }}</span>
+              <div class="flex shrink-0 gap-1">
+                <button
+                  type="button"
+                  class="rounded p-1 text-zinc-500 hover:bg-white hover:text-zinc-900 transition-colors duration-150"
+                  :title="`Visualizar ${arquivoName(editing.arquivo)}`"
+                  @click="visualizarArquivo(editing.arquivo)"
+                >
+                  <EyeIcon class="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  class="rounded p-1 text-zinc-500 hover:bg-white hover:text-zinc-900 transition-colors duration-150"
+                  :title="`Baixar ${arquivoName(editing.arquivo)}`"
+                  @click="baixarArquivo(editing.arquivo)"
+                >
+                  <ArrowDownTrayIcon class="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  class="rounded p-1 text-zinc-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 transition-colors duration-150"
+                  :disabled="deletingArquivo"
+                  :title="`Remover ${arquivoName(editing.arquivo)}`"
+                  @click="apagarArquivo"
+                >
+                  <XMarkIcon class="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <input :key="fileInputKey" type="file" accept="application/pdf,.pdf" class="w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-900 file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-2 file:py-1 file:text-xs file:font-medium file:text-zinc-700 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" @change="onFileChange" />
+            <p v-if="fieldError('arquivo')" class="mt-1 text-xs text-red-600">{{ fieldError('arquivo') }}</p>
           </div>
         </div>
       </form>
