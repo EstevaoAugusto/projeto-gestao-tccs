@@ -174,8 +174,8 @@ const statusCards = computed(() => {
           <div v-for="i in 4" :key="i" class="h-24 animate-pulse rounded-lg border border-zinc-200 bg-white" />
         </template>
         <article
-          v-else
           v-for="card in summaryCards"
+          v-else
           :key="card.label"
           class="flex items-center gap-4 rounded-lg border border-zinc-200 bg-white px-4 py-4"
         >

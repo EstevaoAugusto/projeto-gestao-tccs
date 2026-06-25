@@ -10,7 +10,6 @@ import {
   BuildingOfficeIcon,
   BuildingLibraryIcon,
   Bars3Icon,
-  XMarkIcon,
 } from '@heroicons/vue/24/outline'
 import ToastContainer from './ToastContainer.vue'
 import ThemeToggle from './ThemeToggle.vue'

@@ -113,7 +113,7 @@ function fieldError(n) { const e = errors.value[n]; return Array.isArray(e) ? e[
             </tr>
           </template>
           <tr v-else-if="items.length === 0"><td colspan="3" class="px-4 py-12 text-center text-sm text-zinc-400">Nenhum professor encontrado.</td></tr>
-          <tr v-else v-for="item in items" :key="item.id" class="border-b border-zinc-100 hover:bg-zinc-50/60 transition-colors duration-150">
+          <tr v-for="item in items" v-else :key="item.id" class="border-b border-zinc-100 hover:bg-zinc-50/60 transition-colors duration-150">
             <td class="px-4 py-3 font-medium text-zinc-900">{{ item.nome }}</td>
             <td class="px-4 py-3 text-zinc-600">{{ deptoName(item.departamento) }}</td>
             <td class="px-4 py-3">
@@ -129,7 +129,7 @@ function fieldError(n) { const e = errors.value[n]; return Array.isArray(e) ? e[
     <p v-if="!loading" class="text-xs text-zinc-400">{{ items.length }} registro(s)</p>
 
     <BaseModal v-if="showModal" :title="editing ? 'Editar professor' : 'Novo professor'" @close="showModal = false">
-      <form @submit.prevent="save" class="space-y-4">
+      <form class="space-y-4" @submit.prevent="save">
         <div>
           <label class="block text-sm font-medium text-zinc-700 mb-1">Nome</label>
           <input v-model="form.nome" type="text" required class="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />

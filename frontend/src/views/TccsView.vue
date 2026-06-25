@@ -253,8 +253,8 @@ function fieldError(name) {
             </td>
           </tr>
           <tr
-            v-else
             v-for="item in items"
+            v-else
             :key="item.id"
             class="border-b border-zinc-100 hover:bg-zinc-50/60 transition-colors duration-150"
           >
@@ -287,7 +287,7 @@ function fieldError(name) {
       wide
       @close="showModal = false"
     >
-      <form @submit.prevent="save" class="space-y-4">
+      <form class="space-y-4" @submit.prevent="save">
         <div>
           <label class="block text-sm font-medium text-zinc-700 mb-1">Título</label>
           <input v-model="form.titulo" type="text" required class="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
@@ -388,7 +388,7 @@ function fieldError(name) {
           </div>
           <div>
             <label class="block text-sm font-medium text-zinc-700 mb-1">Arquivo <span class="text-zinc-400 font-normal">(PDF)</span></label>
-            <input type="file" accept=".pdf,.doc,.docx" @change="onFileChange" class="w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-900 file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-2 file:py-1 file:text-xs file:font-medium file:text-zinc-700 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
+            <input type="file" accept=".pdf,.doc,.docx" class="w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-900 file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-2 file:py-1 file:text-xs file:font-medium file:text-zinc-700 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20" @change="onFileChange" />
           </div>
         </div>
       </form>
