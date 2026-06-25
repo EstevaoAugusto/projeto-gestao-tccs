@@ -34,3 +34,15 @@ class TCCSerializer(serializers.ModelSerializer):
     class Meta:
         model = TCC
         fields = '__all__'
+
+    def validate_arquivo(self, arquivo):
+        if not arquivo:
+            return arquivo
+
+        nome_arquivo = arquivo.name.lower()
+        content_type = getattr(arquivo, 'content_type', None)
+
+        if not nome_arquivo.endswith('.pdf') or (content_type and content_type != 'application/pdf'):
+            raise serializers.ValidationError('O arquivo enviado deve ser um PDF.')
+
+        return arquivo
